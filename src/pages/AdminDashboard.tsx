@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createClient } from '@blinkdotnew/sdk';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -9,7 +10,7 @@ import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
-import { Plus, Search, Filter, Users, TrendingUp, DollarSign, Clock } from 'lucide-react';
+import { Plus, Search, Filter, Users, TrendingUp, DollarSign, Clock, ArrowLeft, Upload, Database, Send, Eye, Building2 } from 'lucide-react';
 
 const blink = createClient({
   projectId: 'pfnexus-clone-bppmyeua',
@@ -61,9 +62,13 @@ interface InvestorMandate {
 }
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [introducers, setIntroducers] = useState<Introducer[]>([]);
   const [mandates, setMandates] = useState<InvestorMandate[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [investors, setInvestors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTab, setSelectedTab] = useState('deals');
@@ -94,15 +99,19 @@ export default function AdminDashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [dealsData, introducersData, mandatesData] = await Promise.all([
+      const [dealsData, introducersData, mandatesData, projectsData, investorsData] = await Promise.all([
         blink.db.deals.list({ orderBy: { created_at: 'desc' } }),
         blink.db.introducers.list({ orderBy: { created_at: 'desc' } }),
-        blink.db.investorMandates.list({ orderBy: { created_at: 'desc' } })
+        blink.db.investorMandates.list({ orderBy: { created_at: 'desc' } }),
+        blink.db.projectUploads.list({ orderBy: { createdAt: 'desc' } }),
+        blink.db.users.list({ where: { userType: 'investor' } })
       ]);
       
       setDeals(dealsData);
       setIntroducers(introducersData);
       setMandates(mandatesData);
+      setProjects(projectsData);
+      setInvestors(investorsData);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -111,8 +120,21 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    const userData = localStorage.getItem('bearEnergyUser');
+    if (!userData) {
+      navigate('/login');
+      return;
+    }
+
+    const parsedUser = JSON.parse(userData);
+    if (parsedUser.userType !== 'admin') {
+      navigate('/login');
+      return;
+    }
+
+    setUser(parsedUser);
     loadData();
-  }, []);
+  }, [navigate]);
 
   const createDeal = async () => {
     try {
@@ -198,6 +220,132 @@ export default function AdminDashboard() {
     }
   };
 
+  const distributeProjectToInvestor = async (projectId: string, investorId: string, accessTier: number) => {
+    try {
+      const project = projects.find(p => p.id === projectId);
+      const investor = investors.find(i => i.id === investorId);
+      
+      if (!project || !investor) return;
+
+      // Create project access record
+      const accessId = `access_${Date.now()}`;
+      await blink.db.investorProjectAccess.create({
+        id: accessId,
+        investorUserId: investorId,
+        projectId: projectId,
+        accessTier: accessTier,
+        grantedByUserId: user.id
+      });
+
+      // Create notification
+      const notificationId = `notif_${Date.now()}`;
+      await blink.db.notifications.create({
+        id: notificationId,
+        userId: investorId,
+        type: 'project_added',
+        title: 'New Project Added to Your Portfolio',
+        message: `Bear Energy has added "${project.projectName}" to your investment portfolio. This ${project.technologyType} project in ${project.location} is now available for your review.`,
+        projectId: projectId,
+        isRead: "0"
+      });
+
+      // Send email notification
+      try {
+        await blink.notifications.email({
+          to: investor.email,
+          from: 'deals@bearenergy.co.uk',
+          subject: `New Investment Opportunity: ${project.projectName}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: #004225; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Bear Energy</h1>
+                <p style="margin: 5px 0 0 0;">New Investment Opportunity</p>
+              </div>
+              
+              <div style="padding: 30px 20px;">
+                <h2 style="color: #004225; margin-bottom: 20px;">New Project Added to Your Portfolio</h2>
+                
+                <p>Dear ${investor.companyName || 'Valued Investor'},</p>
+                
+                <p>We're pleased to inform you that a new investment opportunity has been added to your portfolio:</p>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="color: #004225; margin-top: 0;">${project.projectName}</h3>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <div>
+                      <strong>Technology:</strong> ${project.technologyType}<br>
+                      <strong>Location:</strong> ${project.location}<br>
+                    </div>
+                    <div>
+                      <strong>Capacity:</strong> ${project.capacityMw} MW<br>
+                      <strong>Est. Value:</strong> £${project.estimatedValueGbp?.toLocaleString()}<br>
+                    </div>
+                  </div>
+                  <div style="margin-top: 15px;">
+                    <strong>Access Level:</strong> 
+                    <span style="background: ${accessTier === 1 ? '#fef3c7' : accessTier === 2 ? '#dbeafe' : '#d1fae5'}; 
+                                 color: ${accessTier === 1 ? '#92400e' : accessTier === 2 ? '#1e40af' : '#065f46'}; 
+                                 padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                      Tier ${accessTier} - ${accessTier === 1 ? 'Overview' : accessTier === 2 ? 'Teaser' : 'Full Access'}
+                    </span>
+                  </div>
+                </div>
+                
+                <p>You can now review this opportunity in your investor portal. Please log in to access the project details and documentation.</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${window.location.origin}/investor" 
+                     style="background: #004225; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                    View Project Details
+                  </a>
+                </div>
+                
+                <p>If you have any questions about this opportunity, please don't hesitate to contact our team.</p>
+                
+                <p>Best regards,<br>
+                The Bear Energy Team</p>
+              </div>
+              
+              <div style="background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+                <p>Bear Energy | Renewable Energy Deal Flow Platform</p>
+                <p>bearenergy.co.uk | deals@bearenergy.co.uk</p>
+              </div>
+            </div>
+          `,
+          text: `
+New Investment Opportunity: ${project.projectName}
+
+Dear ${investor.companyName || 'Valued Investor'},
+
+We're pleased to inform you that a new investment opportunity has been added to your portfolio:
+
+Project: ${project.projectName}
+Technology: ${project.technologyType}
+Location: ${project.location}
+Capacity: ${project.capacityMw} MW
+Est. Value: £${project.estimatedValueGbp?.toLocaleString()}
+Access Level: Tier ${accessTier}
+
+You can now review this opportunity in your investor portal at ${window.location.origin}/investor
+
+Best regards,
+The Bear Energy Team
+bearenergy.co.uk
+          `
+        });
+      } catch (emailError) {
+        console.error('Error sending email notification:', emailError);
+        // Continue even if email fails
+      }
+
+      alert('Project successfully distributed to investor with email notification sent!');
+      loadData();
+    } catch (error) {
+      console.error('Error distributing project:', error);
+      alert('Error distributing project. Please try again.');
+    }
+  };
+
   const filteredDeals = deals.filter(deal =>
     deal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     deal.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -244,21 +392,59 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Bear Energy Admin</h1>
-              <p className="text-gray-600">Deal Management & Distribution System</p>
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/')}
+                className="mr-4 text-green-700 hover:text-green-800 hover:bg-green-100"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Home
+              </Button>
+              <div className="flex items-center">
+                <Building2 className="w-8 h-8 text-green-800 mr-3" />
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">Bear Energy Admin</h1>
+                  <p className="text-sm text-gray-600">Deal Management & Distribution System</p>
+                </div>
+              </div>
             </div>
-            <div className="flex space-x-4">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/upload-project')}
+                className="text-green-700 border-green-300 hover:bg-green-50"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Project
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate('/crm')}
+                className="text-green-700 border-green-300 hover:bg-green-50"
+              >
+                <Database className="w-4 h-4 mr-2" />
+                CRM
+              </Button>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
+                  className="pl-10 w-48"
                 />
               </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  localStorage.removeItem('bearEnergyUser');
+                  navigate('/login');
+                }}
+              >
+                Logout
+              </Button>
             </div>
           </div>
         </div>
@@ -324,8 +510,9 @@ export default function AdminDashboard() {
 
         {/* Main Content */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="deals">Deals Management</TabsTrigger>
+            <TabsTrigger value="projects">Project Distribution</TabsTrigger>
             <TabsTrigger value="introducers">Introducers</TabsTrigger>
             <TabsTrigger value="assignments">Deal Assignments</TabsTrigger>
           </TabsList>
@@ -515,6 +702,121 @@ export default function AdminDashboard() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="projects" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Project Distribution</h2>
+              <div className="text-sm text-gray-600">
+                {projects.length} projects • {investors.length} investors
+              </div>
+            </div>
+
+            <div className="grid gap-6">
+              {projects.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Projects Yet</h3>
+                    <p className="text-gray-600 mb-4">
+                      Upload projects to start distributing them to investors
+                    </p>
+                    <Button 
+                      onClick={() => navigate('/upload-project')}
+                      className="bg-[#004225] hover:bg-[#003319]"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload First Project
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                projects.map((project) => (
+                  <Card key={project.id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-xl">{project.projectName}</CardTitle>
+                          <CardDescription>
+                            {project.technologyType} • {project.location} • {project.capacityMw} MW
+                          </CardDescription>
+                        </div>
+                        <Badge className="bg-green-100 text-green-800">
+                          {project.uploadStatus}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div>
+                          <p className="text-sm text-gray-500">Technology</p>
+                          <p className="font-medium capitalize">{project.technologyType}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Capacity</p>
+                          <p className="font-medium">{project.capacityMw} MW</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Est. Value</p>
+                          <p className="font-medium">£{project.estimatedValueGbp?.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Uploaded</p>
+                          <p className="font-medium">{new Date(project.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+
+                      <div className="border-t pt-4">
+                        <h4 className="font-medium text-gray-900 mb-3">Distribute to Investors</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {investors.map((investor) => (
+                            <div key={investor.id} className="border rounded-lg p-4">
+                              <div className="flex justify-between items-start mb-3">
+                                <div>
+                                  <h5 className="font-medium text-sm">{investor.companyName || investor.username}</h5>
+                                  <p className="text-xs text-gray-500">{investor.email}</p>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => distributeProjectToInvestor(project.id, investor.id, 1)}
+                                    className="flex-1 text-xs"
+                                  >
+                                    <Send className="w-3 h-3 mr-1" />
+                                    Tier 1
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => distributeProjectToInvestor(project.id, investor.id, 2)}
+                                    className="flex-1 text-xs"
+                                  >
+                                    <Send className="w-3 h-3 mr-1" />
+                                    Tier 2
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => distributeProjectToInvestor(project.id, investor.id, 3)}
+                                    className="flex-1 text-xs"
+                                  >
+                                    <Send className="w-3 h-3 mr-1" />
+                                    Tier 3
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </TabsContent>
 

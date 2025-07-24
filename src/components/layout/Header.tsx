@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { ChevronDown, Menu, X } from 'lucide-react'
 import {
@@ -11,6 +12,7 @@ import {
 } from '../ui/navigation-menu'
 
 const Header = () => {
+  const navigate = useNavigate()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   return (
@@ -83,8 +85,18 @@ const Header = () => {
 
           {/* Desktop CTA Buttons */}
           <div className="hidden lg:flex items-center space-x-4">
-            <Button variant="ghost">Log In</Button>
-            <Button className="bg-[#004225] hover:bg-[#003319]">Get Started</Button>
+            <Button 
+              variant="ghost"
+              onClick={() => navigate('/login')}
+            >
+              Login
+            </Button>
+            <Button 
+              className="bg-[#004225] hover:bg-[#003319]"
+              onClick={() => navigate('/login')}
+            >
+              Get Started
+            </Button>
           </div>
 
           {/* Mobile menu button */}
@@ -109,10 +121,21 @@ const Header = () => {
               <a href="/introducer" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Introducer Portal</a>
               <div className="pt-4 pb-3 border-t border-gray-200">
                 <div className="flex items-center px-3 space-x-3">
-                  <Button variant="ghost" className="w-full justify-start">Log In</Button>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start"
+                    onClick={() => navigate('/login')}
+                  >
+                    Login
+                  </Button>
                 </div>
                 <div className="mt-3 px-3">
-                  <Button className="w-full bg-[#004225] hover:bg-[#003319]">Get Started</Button>
+                  <Button 
+                    className="w-full bg-[#004225] hover:bg-[#003319]"
+                    onClick={() => navigate('/login')}
+                  >
+                    Get Started
+                  </Button>
                 </div>
               </div>
             </div>
