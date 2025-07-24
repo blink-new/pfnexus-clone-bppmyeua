@@ -20,7 +20,7 @@ const Header = () => {
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-2xl font-bold text-blue-600">Bear Energy</span>
+              <span className="text-2xl font-bold text-[#004225]">Bear Energy</span>
             </div>
           </div>
 
@@ -68,14 +68,14 @@ const Header = () => {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <NavigationMenuLink className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50">
-                  Reports
+                <NavigationMenuLink href="/admin" className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50">
+                  Admin
                 </NavigationMenuLink>
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <NavigationMenuLink className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50">
-                  Blog
+                <NavigationMenuLink href="/introducer" className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50">
+                  Introducer Portal
                 </NavigationMenuLink>
               </NavigationMenuItem>
             </NavigationMenuList>
@@ -84,7 +84,7 @@ const Header = () => {
           {/* Desktop CTA Buttons */}
           <div className="hidden lg:flex items-center space-x-4">
             <Button variant="ghost">Log In</Button>
-            <Button className="bg-blue-600 hover:bg-blue-700">Get Started</Button>
+            <Button className="bg-[#004225] hover:bg-[#003319]">Get Started</Button>
           </div>
 
           {/* Mobile menu button */}
@@ -105,14 +105,14 @@ const Header = () => {
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
               <a href="#" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Platform</a>
               <a href="#" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Use Cases</a>
-              <a href="#" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Reports</a>
-              <a href="#" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Blog</a>
+              <a href="/admin" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Admin</a>
+              <a href="/introducer" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Introducer Portal</a>
               <div className="pt-4 pb-3 border-t border-gray-200">
                 <div className="flex items-center px-3 space-x-3">
                   <Button variant="ghost" className="w-full justify-start">Log In</Button>
                 </div>
                 <div className="mt-3 px-3">
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700">Get Started</Button>
+                  <Button className="w-full bg-[#004225] hover:bg-[#003319]">Get Started</Button>
                 </div>
               </div>
             </div>
